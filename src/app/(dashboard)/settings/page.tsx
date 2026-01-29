@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { useSync } from '@/components/providers/SyncProvider';
 import { subscriptionService } from '@/lib/subscription/subscriptionService';
+import { GeoPrice, DEFAULT_PRICE, formatPrice, formatOriginalPrice } from '@/lib/geo-pricing';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -99,12 +100,21 @@ export default function SettingsPage() {
     missingConfig: string[];
   } | null>(null);
 
-  // Fetch Stripe configuration on mount
+  // Geo-based pricing state
+  const [geoPrice, setGeoPrice] = useState<GeoPrice>(DEFAULT_PRICE);
+
+  // Fetch Stripe configuration and geo price on mount
   useEffect(() => {
     fetch('/api/stripe/config')
       .then((res) => res.json())
       .then((data) => setStripeConfig(data))
       .catch(() => setStripeConfig({ isConfigured: false, isTestMode: true, missingConfig: ['Unknown'] }));
+
+    // Fetch geo-based pricing
+    fetch('/api/geo-price')
+      .then((res) => res.json())
+      .then((data) => setGeoPrice(data))
+      .catch(() => setGeoPrice(DEFAULT_PRICE));
   }, []);
 
   // Lazily fetch family connections
@@ -1408,13 +1418,21 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-center gap-2 mt-1">
                   {discountValidation?.isValid ? (
                     <>
-                      <span className="text-lg text-slate-500 line-through">£29.99</span>
+                      <span className="text-lg text-slate-500 line-through">{formatOriginalPrice(geoPrice)}</span>
                       <span className="text-2xl font-bold text-amber-400">{discountValidation.discountDisplay}</span>
                     </>
+                  ) : geoPrice.discountPercent > 0 ? (
+                    <>
+                      <span className="text-lg text-slate-500 line-through">{formatOriginalPrice(geoPrice)}</span>
+                      <span className="text-2xl font-bold text-amber-400">{formatPrice(geoPrice)}</span>
+                    </>
                   ) : (
-                    <span className="text-2xl font-bold text-amber-400">£29.99</span>
+                    <span className="text-2xl font-bold text-amber-400">{formatPrice(geoPrice)}</span>
                   )}
                 </div>
+                {geoPrice.discountPercent > 0 && !discountValidation?.isValid && (
+                  <p className="text-xs text-emerald-400 mb-1">خصم {geoPrice.discountPercent}% لـ {geoPrice.countryName}</p>
+                )}
                 <p className="text-xs text-slate-400">اشتراك 12 شهراً • دفعة واحدة</p>
               </div>
 
