@@ -229,7 +229,7 @@ export function LittleStarDashboard({
             <div className="text-3xl">{dua.emoji}</div>
             <div className="text-left">
               <h3 className="font-semibold text-white">دعاء اليوم المميز</h3>
-              <p className="text-purple-300 text-sm">{dua.english}</p>
+              <p className="text-purple-300 text-sm">{dua.meaning}</p>
             </div>
           </div>
           {showDua ? (
