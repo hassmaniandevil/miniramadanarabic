@@ -1,0 +1,106 @@
+{
+  "appName": "MiniRamadan",
+  "subtitle": "Family Ramadan Tracker",
+
+  "description": {
+    "short": "Track Ramadan together as a family with fasting logs, kindness missions, wonder cards, and beautiful star constellations. Perfect for children learning about Ramadan.",
+    "full": "MiniRamadan helps families celebrate and track Ramadan together in a beautiful, child-friendly way.\n\n🌙 FEATURES FOR THE WHOLE FAMILY\n\n⭐ Star Collection\nEarn stars for fasting, completing kindness missions, and learning about Ramadan. Watch your family's night sky fill with beautiful constellations as you progress through the month.\n\n📚 Daily Wonder Cards\nLearn something amazing about Ramadan every day with our beautifully designed wonder cards. Each card includes an interesting fact and an Arabic word of the day.\n\n💝 Kindness Missions\nDaily missions encourage acts of kindness - from helping at home to being kind to friends. Complete \"Quiet Star\" secret missions for extra special rewards.\n\n🌅 Suhoor & Iftar Tracking\nLog your suhoor meals with fun food group selections. Get meal tips and health facts to keep energy levels up during fasting.\n\n✨ Photo Memories\nCapture and save your favorite Ramadan moments - first iftars, family gatherings, decorations, and acts of kindness. Build a treasured gallery that grows year after year.\n\n💌 Time Capsule Messages\nWrite heartfelt messages to family members that are sealed and revealed in the future - next Ramadan, Eid, or a special date you choose.\n\n📖 Bedtime Stories\nEnjoy beautifully written Islamic bedtime stories, age-appropriate for different family members.\n\n👨‍👩‍👧‍👦 Up to 6 Family Profiles\nCreate profiles for everyone in the family, including Little Stars (ages 4-6) who get a special simplified experience.\n\n🌍 Long-Distance Family Support\nSet individual timezones for family members in different countries. See when everyone's iftar is happening around the world.\n\n💾 Sync Across Devices\nYour family's progress syncs automatically across all devices. Works offline too!\n\n🎨 Beautiful Design\nA gorgeous night sky theme with stars, constellations, and gentle animations that children and adults will love.\n\nMiniRamadan is made with ❤️ for Muslim families everywhere. Start your Ramadan journey together!"
+  },
+
+  "keywords": [
+    "Ramadan",
+    "Islamic",
+    "Muslim",
+    "Family",
+    "Kids",
+    "Children",
+    "Fasting",
+    "Tracker",
+    "Stars",
+    "Kindness",
+    "Education",
+    "Iftar",
+    "Suhoor",
+    "Prayer",
+    "Eid"
+  ],
+
+  "categories": {
+    "primary": "Lifestyle",
+    "secondary": "Education"
+  },
+
+  "ageRating": "4+",
+
+  "privacyPolicyUrl": "https://miniramadan.com/privacy",
+  "termsOfServiceUrl": "https://miniramadan.com/terms",
+  "supportUrl": "https://miniramadan.com/support",
+  "marketingUrl": "https://miniramadan.com",
+
+  "pricing": {
+    "free": true,
+    "inAppPurchases": [
+      {
+        "id": "com.miniramadan.ramadanpass",
+        "name": "Ramadan Pass",
+        "price": "£29.99/year",
+        "description": "Unlock all bedtime stories, premium features, and support the app's development"
+      }
+    ]
+  },
+
+  "screenshots": {
+    "iphone6_5": [
+      "Family dashboard with star counter",
+      "Daily wonder card with Arabic word",
+      "Kindness mission screen",
+      "Family sky with constellations",
+      "Photo memories gallery",
+      "Time capsule composer"
+    ],
+    "iphone5_5": [
+      "Family dashboard",
+      "Wonder card",
+      "Kindness mission",
+      "Family sky",
+      "Memories",
+      "Time capsule"
+    ],
+    "ipad": [
+      "Family dashboard (landscape)",
+      "Wonder card (landscape)",
+      "Family sky (landscape)"
+    ]
+  },
+
+  "releaseNotes": {
+    "1.0.0": "Initial release! Welcome to MiniRamadan - your family's Ramadan companion.\n\n🌙 Track fasting for the whole family\n⭐ Earn stars and unlock constellations\n📚 Daily wonder cards with Arabic words\n💝 Kindness missions\n📸 Photo memories\n💌 Time capsule messages\n📖 Bedtime stories\n👨‍👩‍👧‍👦 Up to 6 family profiles\n\nRamadan Mubarak!"
+  },
+
+  "appStoreConnect": {
+    "bundleId": "com.miniramadan.app",
+    "sku": "miniramadan",
+    "primaryLanguage": "en-GB"
+  },
+
+  "googlePlay": {
+    "packageName": "com.miniramadan.app",
+    "contentRating": {
+      "questionnaire": {
+        "violence": "none",
+        "sexualContent": "none",
+        "profanity": "none",
+        "drugs": "none",
+        "userGeneratedContent": true,
+        "userInteraction": true,
+        "locationSharing": false,
+        "inAppPurchases": true
+      }
+    },
+    "targetAudience": {
+      "containsAds": false,
+      "targetChildrenUnder13": false,
+      "familyApp": true
+    }
+  }
+}

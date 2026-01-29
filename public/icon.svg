@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="moonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fcd34d"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="108" fill="#0f172a"/>
+
+  <!-- Moon crescent using mask -->
+  <mask id="crescentMask">
+    <rect width="512" height="512" fill="white"/>
+    <circle cx="295" cy="256" r="140" fill="black"/>
+  </mask>
+
+  <circle cx="256" cy="256" r="160" fill="url(#moonGrad)" mask="url(#crescentMask)"/>
+
+  <!-- Star -->
+  <path d="M380 100 L390 130 L420 130 L395 150 L405 180 L380 160 L355 180 L365 150 L340 130 L370 130 Z" fill="#fcd34d"/>
+</svg>

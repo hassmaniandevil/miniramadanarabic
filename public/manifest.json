@@ -1,0 +1,29 @@
+{
+  "name": "ميني رمضان - اجعل رمضان سحرياً لعائلتك",
+  "short_name": "ميني رمضان",
+  "description": "التطبيق الرمضاني الوحيد للعائلات المسلمة. قصص يومية، مهمات لُطف، وسماء مليئة بالنجوم تنمو مع كل عمل صالح. للأطفال من ٤-١٢ سنة.",
+  "dir": "rtl",
+  "lang": "ar",
+  "start_url": "/family",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["lifestyle", "education", "family"],
+  "screenshots": [],
+  "prefer_related_applications": false
+}
