@@ -252,7 +252,7 @@ export function LittleStarDashboard({
                   {dua.arabic}
                 </p>
                 <p className="text-center text-purple-300 text-lg mb-2">
-                  {dua.english}
+                  {dua.transliteration}
                 </p>
                 <p className="text-center text-slate-400 text-sm">
                   {dua.meaning}
