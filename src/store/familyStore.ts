@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { Family, Profile, DailyProgress, FastingLog, SuhoorLog, IftarMessage, Star, Memory, TimeCapsule, RamadanGoal, PreparationTask, GoalCategory, PrepTaskCategory, FamilyConnection, ConnectedFamilyInfo, FamilyEncouragement } from '@/types';
+import { Family, Profile, DailyProgress, FastingLog, SuhoorLog, IftarMessage, Star, Memory, TimeCapsule, RamadanGoal, PreparationTask, GoalCategory, PrepTaskCategory, FamilyConnection, ConnectedFamilyInfo, FamilyEncouragement, FamilyDua, DuaCategory, FamilyStreak, ActivityFeedEvent } from '@/types';
 import { syncService } from '@/lib/supabase/sync';
-import { getScaledThresholds } from '@/data/constellations';
+import { getScaledThresholds, getUnlockedConstellationsScaled } from '@/data/constellations';
 
 interface FamilyState {
   // Core data
@@ -37,6 +37,19 @@ interface FamilyState {
   incomingRequests: FamilyConnection[];
   encouragements: FamilyEncouragement[];
   unreadEncouragementCount: number;
+
+  // Family Dua Board
+  familyDuas: FamilyDua[];
+
+  // Family Streaks
+  familyStreak: FamilyStreak | null;
+
+  // Activity Feed
+  activityFeed: ActivityFeedEvent[];
+
+  // Constellation Celebrations
+  showConstellationCelebration: boolean;
+  lastUnlockedConstellation: string | null;
 
   // Test mode
   testMode: boolean;
@@ -131,6 +144,23 @@ interface FamilyState {
   // Family settings actions
   toggleTimezoneTracking: (enabled: boolean) => Promise<void>;
 
+  // Family Dua Board actions
+  fetchFamilyDuas: () => Promise<void>;
+  addFamilyDua: (duaText: string, category: DuaCategory, isPrivate?: boolean) => Promise<FamilyDua | null>;
+  toggleDuaCompleted: (duaId: string, completed: boolean) => Promise<boolean>;
+  deleteFamilyDua: (duaId: string) => Promise<boolean>;
+
+  // Family Streak actions
+  fetchFamilyStreak: () => Promise<void>;
+
+  // Activity Feed actions
+  fetchActivityFeed: () => Promise<void>;
+  addActivityFeedEvent: (event: Omit<ActivityFeedEvent, 'id' | 'createdAt'>) => Promise<void>;
+
+  // Constellation Celebration actions
+  dismissConstellationCelebration: () => void;
+  checkForNewConstellation: (prevTotal: number, newTotal: number) => void;
+
   // Computed getters
   getActiveProfile: () => Profile | null;
   getDailyProgress: (profileId: string) => DailyProgress;
@@ -190,6 +220,11 @@ const initialState = {
   incomingRequests: [] as FamilyConnection[],
   encouragements: [] as FamilyEncouragement[],
   unreadEncouragementCount: 0,
+  familyDuas: [] as FamilyDua[],
+  familyStreak: null as FamilyStreak | null,
+  activityFeed: [] as ActivityFeedEvent[],
+  showConstellationCelebration: false,
+  lastUnlockedConstellation: null as string | null,
   testMode: false,
   testDay: null as number | null,
   testPhase: 'auto' as 'auto' | 'before' | 'during' | 'after',
@@ -406,11 +441,18 @@ export const useFamilyStore = create<FamilyState>()(
       setTodaysStars: (stars) => set({ todaysStars: stars }),
 
       addStar: async (star) => {
+        // Get previous total for constellation check
+        const prevTotal = get().getTotalFamilyStars();
+
         // Add to today's stars
         set((state) => ({
           todaysStars: [...state.todaysStars, star],
           allStars: [...state.allStars, star],
         }));
+
+        // Check for new constellation unlock
+        const newTotal = get().getTotalFamilyStars();
+        get().checkForNewConstellation(prevTotal, newTotal);
 
         if (get().isOnline) {
           await syncService.addStar({
@@ -987,6 +1029,186 @@ export const useFamilyStore = create<FamilyState>()(
       },
 
       // ==========================================
+      // FAMILY DUA BOARD ACTIONS
+      // ==========================================
+      fetchFamilyDuas: async () => {
+        const { family, isOnline, selectedRamadanYear } = get();
+        if (!family || !isOnline) return;
+
+        try {
+          const duas = await syncService.fetchFamilyDuas(family.id, selectedRamadanYear);
+          set({ familyDuas: duas });
+        } catch (error) {
+          console.error('Error fetching family duas:', error);
+        }
+      },
+
+      addFamilyDua: async (duaText: string, category: DuaCategory, isPrivate: boolean = false) => {
+        const { family, activeProfileId, isOnline, selectedRamadanYear } = get();
+        if (!family || !activeProfileId) return null;
+
+        const newDua: FamilyDua = {
+          id: `dua-${Date.now()}`,
+          familyId: family.id,
+          authorProfileId: activeProfileId,
+          duaText,
+          category,
+          isPrivate,
+          isCompleted: false,
+          ramadanYear: selectedRamadanYear,
+          createdAt: new Date().toISOString(),
+        };
+
+        // Optimistic update
+        set((state) => ({ familyDuas: [newDua, ...state.familyDuas] }));
+
+        if (isOnline) {
+          const serverDua = await syncService.addFamilyDua({
+            familyId: family.id,
+            authorProfileId: activeProfileId,
+            duaText,
+            category,
+            isPrivate,
+            ramadanYear: selectedRamadanYear,
+          });
+
+          if (serverDua) {
+            // Update with server ID
+            set((state) => ({
+              familyDuas: state.familyDuas.map((d) =>
+                d.id === newDua.id ? serverDua : d
+              ),
+            }));
+            return serverDua;
+          }
+        }
+
+        return newDua;
+      },
+
+      toggleDuaCompleted: async (duaId: string, completed: boolean) => {
+        const { isOnline } = get();
+        const now = new Date().toISOString();
+
+        // Optimistic update
+        set((state) => ({
+          familyDuas: state.familyDuas.map((d) =>
+            d.id === duaId
+              ? { ...d, isCompleted: completed, completedAt: completed ? now : undefined }
+              : d
+          ),
+        }));
+
+        if (isOnline) {
+          const success = await syncService.updateFamilyDua(duaId, { isCompleted: completed });
+          if (!success) {
+            // Revert on failure
+            set((state) => ({
+              familyDuas: state.familyDuas.map((d) =>
+                d.id === duaId
+                  ? { ...d, isCompleted: !completed, completedAt: undefined }
+                  : d
+              ),
+            }));
+            return false;
+          }
+        }
+
+        return true;
+      },
+
+      deleteFamilyDua: async (duaId: string) => {
+        const { isOnline, familyDuas } = get();
+        const duaToDelete = familyDuas.find((d) => d.id === duaId);
+
+        // Optimistic update
+        set((state) => ({
+          familyDuas: state.familyDuas.filter((d) => d.id !== duaId),
+        }));
+
+        if (isOnline) {
+          const success = await syncService.deleteFamilyDua(duaId);
+          if (!success && duaToDelete) {
+            // Revert on failure
+            set((state) => ({
+              familyDuas: [...state.familyDuas, duaToDelete],
+            }));
+            return false;
+          }
+        }
+
+        return true;
+      },
+
+      // ==========================================
+      // FAMILY STREAK ACTIONS
+      // ==========================================
+      fetchFamilyStreak: async () => {
+        const { family, isOnline } = get();
+        if (!family || !isOnline) return;
+
+        try {
+          const streak = await syncService.fetchFamilyStreak(family.id);
+          set({ familyStreak: streak });
+        } catch (error) {
+          console.error('Error fetching family streak:', error);
+        }
+      },
+
+      // ==========================================
+      // ACTIVITY FEED ACTIONS
+      // ==========================================
+      fetchActivityFeed: async () => {
+        const { family, isOnline } = get();
+        if (!family || !isOnline) return;
+
+        try {
+          const feed = await syncService.fetchActivityFeed(family.id);
+          set({ activityFeed: feed });
+        } catch (error) {
+          console.error('Error fetching activity feed:', error);
+        }
+      },
+
+      addActivityFeedEvent: async (event: Omit<ActivityFeedEvent, 'id' | 'createdAt'>) => {
+        const { isOnline } = get();
+
+        if (isOnline) {
+          const serverEvent = await syncService.addActivityFeedEvent(event);
+          if (serverEvent) {
+            set((state) => ({
+              activityFeed: [serverEvent, ...state.activityFeed],
+            }));
+          }
+        }
+      },
+
+      // ==========================================
+      // CONSTELLATION CELEBRATION ACTIONS
+      // ==========================================
+      dismissConstellationCelebration: () => {
+        set({ showConstellationCelebration: false, lastUnlockedConstellation: null });
+      },
+
+      checkForNewConstellation: (prevTotal: number, newTotal: number) => {
+        const { profiles } = get();
+        const profileTypes = profiles.length > 0
+          ? profiles.map(p => p.profileType)
+          : ['adult', 'adult'] as const;
+
+        const prevUnlocked = getUnlockedConstellationsScaled(prevTotal, [...profileTypes]);
+        const newUnlocked = getUnlockedConstellationsScaled(newTotal, [...profileTypes]);
+
+        if (newUnlocked.length > prevUnlocked.length) {
+          const justUnlocked = newUnlocked[newUnlocked.length - 1];
+          set({
+            showConstellationCelebration: true,
+            lastUnlockedConstellation: justUnlocked.name,
+          });
+        }
+      },
+
+      // ==========================================
       // COMPUTED GETTERS
       // ==========================================
       getActiveProfile: () => {
@@ -1179,6 +1401,12 @@ export const useFamilyStore = create<FamilyState>()(
         if (!Array.isArray(state.incomingRequests)) state.incomingRequests = [];
         if (!Array.isArray(state.encouragements)) state.encouragements = [];
         if (typeof state.unreadEncouragementCount !== 'number') state.unreadEncouragementCount = 0;
+        // Ensure stickiness feature fields exist (added in v3)
+        if (!Array.isArray(state.familyDuas)) state.familyDuas = [];
+        if (state.familyStreak === undefined) state.familyStreak = null;
+        if (!Array.isArray(state.activityFeed)) state.activityFeed = [];
+        if (typeof state.showConstellationCelebration !== 'boolean') state.showConstellationCelebration = false;
+        if (state.lastUnlockedConstellation === undefined) state.lastUnlockedConstellation = null;
         return state;
       },
       partialize: (state) => ({
@@ -1206,6 +1434,12 @@ export const useFamilyStore = create<FamilyState>()(
         incomingRequests: state.incomingRequests,
         encouragements: state.encouragements,
         unreadEncouragementCount: state.unreadEncouragementCount,
+        // Family Dua Board
+        familyDuas: state.familyDuas,
+        // Family Streaks
+        familyStreak: state.familyStreak,
+        // Activity Feed (keep recent for offline)
+        activityFeed: state.activityFeed.slice(0, 20),
         // Test mode
         testMode: state.testMode,
         testDay: state.testDay,

@@ -1,5 +1,5 @@
 import { createClient } from './client';
-import { Family, Profile, Star, FastingLog, SuhoorLog, IftarMessage, Memory, TimeCapsule, MemoryCategory, TimeCapsuleRevealType, FamilyConnection, FamilyEncouragement, ConnectedFamilyInfo } from '@/types';
+import { Family, Profile, Star, FastingLog, SuhoorLog, IftarMessage, Memory, TimeCapsule, MemoryCategory, TimeCapsuleRevealType, FamilyConnection, FamilyEncouragement, ConnectedFamilyInfo, FamilyDua, DuaCategory, FamilyStreak, ActivityFeedEvent, ActivityEventType } from '@/types';
 
 // Type definitions for database rows
 interface DbFamily {
@@ -299,6 +299,76 @@ function dbEncouragementToEncouragement(db: DbFamilyEncouragement): FamilyEncour
     message: db.message,
     emoji: db.emoji || undefined,
     isRead: db.is_read,
+    createdAt: db.created_at,
+  };
+}
+
+interface DbFamilyDua {
+  id: string;
+  family_id: string;
+  author_profile_id: string;
+  dua_text: string;
+  category: DuaCategory;
+  is_private: boolean;
+  is_completed: boolean;
+  completed_at: string | null;
+  ramadan_year: number;
+  created_at: string;
+}
+
+function dbDuaToDua(db: DbFamilyDua): FamilyDua {
+  return {
+    id: db.id,
+    familyId: db.family_id,
+    authorProfileId: db.author_profile_id,
+    duaText: db.dua_text,
+    category: db.category,
+    isPrivate: db.is_private,
+    isCompleted: db.is_completed,
+    completedAt: db.completed_at || undefined,
+    ramadanYear: db.ramadan_year,
+    createdAt: db.created_at,
+  };
+}
+
+interface DbFamilyStreak {
+  id: string;
+  family_id: string;
+  current_streak: number;
+  longest_streak: number;
+  last_activity_date: string | null;
+  streak_start_date: string | null;
+}
+
+function dbStreakToStreak(db: DbFamilyStreak): FamilyStreak {
+  return {
+    id: db.id,
+    familyId: db.family_id,
+    currentStreak: db.current_streak,
+    longestStreak: db.longest_streak,
+    lastActivityDate: db.last_activity_date || undefined,
+    streakStartDate: db.streak_start_date || undefined,
+  };
+}
+
+interface DbActivityFeedEvent {
+  id: string;
+  family_id: string;
+  profile_id: string;
+  event_type: ActivityEventType;
+  event_data: Record<string, unknown>;
+  ramadan_day: number | null;
+  created_at: string;
+}
+
+function dbActivityEventToEvent(db: DbActivityFeedEvent): ActivityFeedEvent {
+  return {
+    id: db.id,
+    familyId: db.family_id,
+    profileId: db.profile_id,
+    eventType: db.event_type,
+    eventData: db.event_data,
+    ramadanDay: db.ramadan_day || undefined,
     createdAt: db.created_at,
   };
 }
@@ -1059,6 +1129,152 @@ export class SyncService {
   }
 
   // ============================================
+  // FAMILY DUA OPERATIONS
+  // ============================================
+  async fetchFamilyDuas(familyId: string, year?: number): Promise<FamilyDua[]> {
+    let query = this.supabase
+      .from('family_duas')
+      .select('*')
+      .eq('family_id', familyId)
+      .order('created_at', { ascending: false });
+
+    if (year) {
+      query = query.eq('ramadan_year', year);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching family duas:', error);
+      return [];
+    }
+
+    return (data || []).map(dbDuaToDua);
+  }
+
+  async addFamilyDua(dua: Omit<FamilyDua, 'id' | 'createdAt' | 'isCompleted' | 'completedAt'>): Promise<FamilyDua | null> {
+    const { data, error } = await this.supabase
+      .from('family_duas')
+      .insert({
+        family_id: dua.familyId,
+        author_profile_id: dua.authorProfileId,
+        dua_text: dua.duaText,
+        category: dua.category,
+        is_private: dua.isPrivate,
+        ramadan_year: dua.ramadanYear,
+      })
+      .select()
+      .single();
+
+    if (error || !data) {
+      console.error('Error adding family dua:', error);
+      return null;
+    }
+
+    return dbDuaToDua(data);
+  }
+
+  async updateFamilyDua(duaId: string, updates: Partial<Pick<FamilyDua, 'duaText' | 'category' | 'isPrivate' | 'isCompleted'>>): Promise<boolean> {
+    const dbUpdates: Record<string, unknown> = {};
+
+    if (updates.duaText !== undefined) dbUpdates.dua_text = updates.duaText;
+    if (updates.category !== undefined) dbUpdates.category = updates.category;
+    if (updates.isPrivate !== undefined) dbUpdates.is_private = updates.isPrivate;
+    if (updates.isCompleted !== undefined) {
+      dbUpdates.is_completed = updates.isCompleted;
+      dbUpdates.completed_at = updates.isCompleted ? new Date().toISOString() : null;
+    }
+
+    const { error } = await this.supabase
+      .from('family_duas')
+      .update(dbUpdates)
+      .eq('id', duaId);
+
+    if (error) {
+      console.error('Error updating family dua:', error);
+      return false;
+    }
+
+    return true;
+  }
+
+  async deleteFamilyDua(duaId: string): Promise<boolean> {
+    const { error } = await this.supabase
+      .from('family_duas')
+      .delete()
+      .eq('id', duaId);
+
+    if (error) {
+      console.error('Error deleting family dua:', error);
+      return false;
+    }
+
+    return true;
+  }
+
+  // ============================================
+  // FAMILY STREAK OPERATIONS
+  // ============================================
+  async fetchFamilyStreak(familyId: string): Promise<FamilyStreak | null> {
+    const { data, error } = await this.supabase
+      .from('family_streaks')
+      .select('*')
+      .eq('family_id', familyId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No streak record exists yet
+        return null;
+      }
+      console.error('Error fetching family streak:', error);
+      return null;
+    }
+
+    return data ? dbStreakToStreak(data) : null;
+  }
+
+  // ============================================
+  // ACTIVITY FEED OPERATIONS
+  // ============================================
+  async fetchActivityFeed(familyId: string, limit: number = 50): Promise<ActivityFeedEvent[]> {
+    const { data, error } = await this.supabase
+      .from('activity_feed_events')
+      .select('*')
+      .eq('family_id', familyId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      console.error('Error fetching activity feed:', error);
+      return [];
+    }
+
+    return (data || []).map(dbActivityEventToEvent);
+  }
+
+  async addActivityFeedEvent(event: Omit<ActivityFeedEvent, 'id' | 'createdAt'>): Promise<ActivityFeedEvent | null> {
+    const { data, error } = await this.supabase
+      .from('activity_feed_events')
+      .insert({
+        family_id: event.familyId,
+        profile_id: event.profileId,
+        event_type: event.eventType,
+        event_data: event.eventData,
+        ramadan_day: event.ramadanDay,
+      })
+      .select()
+      .single();
+
+    if (error || !data) {
+      console.error('Error adding activity feed event:', error);
+      return null;
+    }
+
+    return dbActivityEventToEvent(data);
+  }
+
+  // ============================================
   // REAL-TIME SUBSCRIPTIONS
   // ============================================
   subscribeToFamilyChanges(
@@ -1068,6 +1284,9 @@ export class SyncService {
       onMessageAdded?: (message: IftarMessage) => void;
       onFastingLogAdded?: (log: FastingLog) => void;
       onSuhoorLogAdded?: (log: SuhoorLog) => void;
+      onActivityFeedEvent?: (event: ActivityFeedEvent) => void;
+      onDuaAdded?: (dua: FamilyDua) => void;
+      onDuaUpdated?: (dua: FamilyDua) => void;
     }
   ) {
     const channels: ReturnType<typeof this.supabase.channel>[] = [];
@@ -1094,6 +1313,35 @@ export class SyncService {
         )
         .subscribe();
       channels.push(messagesChannel);
+    }
+
+    if (callbacks.onActivityFeedEvent) {
+      const activityChannel = this.supabase
+        .channel('activity-feed-changes')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'activity_feed_events', filter: `family_id=eq.${familyId}` },
+          (payload: { new: DbActivityFeedEvent }) => callbacks.onActivityFeedEvent?.(dbActivityEventToEvent(payload.new))
+        )
+        .subscribe();
+      channels.push(activityChannel);
+    }
+
+    if (callbacks.onDuaAdded || callbacks.onDuaUpdated) {
+      const duasChannel = this.supabase
+        .channel('duas-changes')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'family_duas', filter: `family_id=eq.${familyId}` },
+          (payload: { new: DbFamilyDua }) => callbacks.onDuaAdded?.(dbDuaToDua(payload.new))
+        )
+        .on(
+          'postgres_changes',
+          { event: 'UPDATE', schema: 'public', table: 'family_duas', filter: `family_id=eq.${familyId}` },
+          (payload: { new: DbFamilyDua }) => callbacks.onDuaUpdated?.(dbDuaToDua(payload.new))
+        )
+        .subscribe();
+      channels.push(duasChannel);
     }
 
     // Return unsubscribe function

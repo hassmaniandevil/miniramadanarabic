@@ -524,3 +524,60 @@ export const ENCOURAGEMENT_MESSAGES: { message: string; emoji: string }[] = [
   { message: 'نرسل لكم الحب والدعاء!', emoji: '💕' },
   { message: 'معاً نضيء أكثر!', emoji: '✨' },
 ];
+
+// ============================================
+// FAMILY DUA BOARD
+// ============================================
+
+export type DuaCategory = 'fasting' | 'prayer' | 'family' | 'health' | 'gratitude' | 'other';
+
+export interface FamilyDua {
+  id: string;
+  familyId: string;
+  authorProfileId: string;
+  duaText: string;
+  category: DuaCategory;
+  isPrivate: boolean;
+  isCompleted: boolean;
+  completedAt?: string;
+  ramadanYear: number;
+  createdAt: string;
+}
+
+export const DUA_CATEGORIES: Record<DuaCategory, { label: string; icon: string; color: string }> = {
+  fasting: { label: 'الصيام', icon: '🌙', color: 'from-amber-500 to-orange-500' },
+  prayer: { label: 'الصلاة', icon: '🤲', color: 'from-emerald-500 to-teal-500' },
+  family: { label: 'العائلة', icon: '👨‍👩‍👧‍👦', color: 'from-purple-500 to-violet-500' },
+  health: { label: 'الصحة', icon: '💪', color: 'from-blue-500 to-cyan-500' },
+  gratitude: { label: 'الشكر', icon: '🙏', color: 'from-rose-500 to-pink-500' },
+  other: { label: 'أخرى', icon: '✨', color: 'from-slate-500 to-gray-500' },
+};
+
+// ============================================
+// FAMILY STREAKS
+// ============================================
+
+export interface FamilyStreak {
+  id: string;
+  familyId: string;
+  currentStreak: number;
+  longestStreak: number;
+  lastActivityDate?: string;
+  streakStartDate?: string;
+}
+
+// ============================================
+// ACTIVITY FEED
+// ============================================
+
+export type ActivityEventType = 'star_earned' | 'constellation_unlocked' | 'dua_added' | 'dua_completed' | 'streak_milestone';
+
+export interface ActivityFeedEvent {
+  id: string;
+  familyId: string;
+  profileId: string;
+  eventType: ActivityEventType;
+  eventData: Record<string, unknown>;
+  ramadanDay?: number;
+  createdAt: string;
+}
